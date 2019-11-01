@@ -37,6 +37,7 @@ import com.gluonhq.substrate.target.TargetConfiguration;
 import com.gluonhq.substrate.util.FileDeps;
 import com.gluonhq.substrate.util.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -78,6 +79,13 @@ public class SubstrateDispatcher {
         config.setUseJavaFX(useJavaFX);
         config.setUsePrismSW(usePrismSW);
         config.getIosSigningConfiguration().setSkipSigning(skipSigning);
+
+        if (useJavaFX) { // TODO
+            String lib = File.pathSeparator + config.getJavafxStaticLibsPath().toString() + File.separator;
+            classPath = classPath + lib + "javafx.base.jar" +
+                    lib + "javafx.graphics.jar" +
+                    lib + "javafx.controls.jar";
+        }
 
         TargetConfiguration targetConfiguration = Objects.requireNonNull(getTargetConfiguration(targetTriplet),
                 "Error: Target Configuration was null");
