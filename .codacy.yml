@@ -1,0 +1,11 @@
+---
+engines:
+  coverage:
+    enabled: true
+  metrics:
+    enabled: true
+  duplication:
+    enabled: true
+exclude_paths:
+  - 'src/test/**/*'
+  - 'test-project/**/*'
