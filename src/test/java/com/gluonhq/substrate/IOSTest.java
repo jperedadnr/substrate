@@ -29,6 +29,7 @@ package com.gluonhq.substrate;
 
 import com.gluonhq.substrate.util.ios.CodeSigning;
 import com.gluonhq.substrate.util.ios.Deploy;
+import com.gluonhq.substrate.util.ios.DeployException;
 import com.gluonhq.substrate.util.ios.Identity;
 import com.gluonhq.substrate.util.ios.MobileProvision;
 import org.gradle.testkit.runner.BuildResult;
@@ -57,7 +58,7 @@ class IOSTest {
         if (deploy == null) {
             try {
                 deploy = new Deploy();
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException | InterruptedException | DeployException e) {
                 e.printStackTrace();
             }
         }

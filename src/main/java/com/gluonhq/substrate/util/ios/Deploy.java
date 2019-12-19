@@ -54,7 +54,7 @@ public class Deploy {
 
     private Path iosDeployPath;
 
-    public Deploy() throws IOException, InterruptedException {
+    public Deploy() throws IOException, InterruptedException, DeployException {
         checkPrerequisites();
     }
 
@@ -62,17 +62,24 @@ public class Deploy {
         return iosDeployPath;
     }
 
-    private void checkPrerequisites() throws IOException, InterruptedException {
+    private void checkPrerequisites() throws IOException, InterruptedException, DeployException {
         iosDeployPath = null;
 
         // Check for Homebrew installed
-        String response = ProcessRunner.runProcessForSingleOutput("check brew","which", "brew");
-        if (response == null || response.isEmpty() || !Files.exists(Path.of(response))) {
-            Logger.logSevere("Homebrew not found");
-            throw new RuntimeException("Open a terminal and run the following command to install Homebrew: \n\n" +
-                    "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\"");
+        String brewPath = ProcessRunner.runProcessForSingleOutput("check brew","which", "brew");
+        validatePath("homebrew", brewPath, "Open a terminal and run the following command to install Homebrew: \n\n" +
+                "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\"");
+        Logger.logDebug("Brew found at " + brewPath);
+
+        // Check Xcode
+        String xcodePath = ProcessRunner.runProcessForSingleOutput("check Xcode","xcode-select", "--print-path");
+        validatePath("Xcode", xcodePath, "Xcode not found");
+        if ("/Library/Developer/CommandLineTools".equals(xcodePath)) {
+            throw new DeployException("Error: Xcode is required, but CommandLine Tools were used instead. \n" +
+                    "Switch to Xcode by running from a terminal:\n" +
+                    "xcode-select --switch /Applications/Xcode.app");
         }
-        Logger.logDebug("Brew found at " + response);
+        Logger.logDebug("Xcode found at " + xcodePath);
 
         // Check if dependencies of libimobiledevice are installed and retrieve linked versions
         Map<String, List<String>> map = new HashMap<>();
@@ -83,27 +90,25 @@ public class Deploy {
         }
 
         // Check for libimobiledevice installed
-        List<String> libiPath = checkDependencyPaths("libimobiledevice");
-        if (libiPath == null || libiPath.isEmpty() || !Files.exists(Path.of(libiPath.get(0)))) {
-            Logger.logSevere("Error finding libimobiledevice.dylib");
-            return;
-        }
+        List<String> libiPaths = checkDependencyPaths("libimobiledevice");
+        validatePath("libimobiledevice.dylib", libiPaths, "Open a terminal and run the following command to install it:\n" +
+                "brew install --HEAD libimobiledevice");
 
-        ProcessRunner runner = new ProcessRunner("otool", "-L", libiPath.get(0));
+        ProcessRunner runner = new ProcessRunner("otool", "-L", libiPaths.get(0));
         if (runner.runProcess("otool") == 0) {
             for (String key : map.keySet()) {
                 if (runner.getResponses().stream()
                         .noneMatch(link -> map.get(key).stream().anyMatch(link::contains))) {
-                    Logger.logSevere("Error: there is a mismatch in the dependency (" + key + ") required by libimobiledevice.dylib: " + map.get(key) + "is required but it wasn't found");
-                    throw new RuntimeException("Open a terminal and run the following command to reinstall the required libraries: \n\n" +
+                    Logger.logInfo("Error: there is a mismatch in the dependency (" + key + ") required by libimobiledevice.dylib: " + map.get(key) + "is required but it wasn't found");
+                    throw new DeployException("Open a terminal and run the following command to reinstall the required libraries: \n\n" +
                             "brew reinstall " + key);
                 }
             }
         }
 
         // Check for ios-deploy installed
-        response = ProcessRunner.runProcessForSingleOutput("check ios-deploy","which", "ios-deploy");
-        if (response == null || response.isEmpty() || !Files.exists(Path.of(response))) {
+        String iosdeployPath = ProcessRunner.runProcessForSingleOutput("check ios-deploy","which", "ios-deploy");
+        if (iosdeployPath == null || iosdeployPath.isEmpty() || !Files.exists(Path.of(iosdeployPath))) {
             if (installIOSDeploy()) {
                 checkPrerequisites();
             }
@@ -117,8 +122,8 @@ public class Deploy {
                     checkPrerequisites();
                 }
             } else {
-                Logger.logDebug("ios-deploy found at " + response);
-                iosDeployPath = Path.of(response);
+                Logger.logDebug("ios-deploy found at " + iosdeployPath);
+                iosDeployPath = Path.of(iosdeployPath);
             }
         }
     }
@@ -178,7 +183,7 @@ public class Deploy {
         return true;
     }
 
-    public void addDebugSymbolInfo(Path appPath, String appName) throws IOException, InterruptedException {
+    public void addDebugSymbolInfo(Path appPath, String appName) throws IOException, InterruptedException, DeployException {
         Path applicationPath = appPath.resolve(appName + ".app");
         Path debugSymbolsPath = Path.of(applicationPath.toString() + ".dSYM");
         if (Files.exists(debugSymbolsPath)) {
@@ -191,7 +196,7 @@ public class Deploy {
         if (runner.runProcess("dsymutil") == 0) {
             copyAppToProducts(debugSymbolsPath, executablePath, appName);
         } else {
-            throw new RuntimeException("Error generating debug symbol files");
+            throw new DeployException("Error generating debug symbol files");
         }
     }
 
@@ -220,34 +225,43 @@ public class Deploy {
         FileOps.copyDirectory(debugSymbolsPath, productDebugSymbolsPath);
     }
 
-    private List<String> checkDependencyPaths(String nameLib) throws IOException, InterruptedException {
+    private List<String> checkDependencyPaths(String nameLib) throws IOException, InterruptedException, DeployException {
         ProcessRunner runner = new ProcessRunner("/bin/sh", "-c", "find $(brew --cellar) -name " + nameLib + ".dylib");
         if (runner.runProcess(nameLib) != 0) {
             Logger.logDebug("Error finding " + nameLib);
             return new ArrayList<>();
         }
-        return runner.getResponses().stream()
-                .map(libPath -> {
-                    Logger.logDebug("lib " + nameLib + " found at " + libPath);
-                    if (libPath == null || libPath.isEmpty() || !Files.exists(Path.of(libPath))) {
-                        Logger.logSevere("Error finding " + nameLib + ".dylib");
-                        throw new RuntimeException("Open a terminal and run the following command to install " + nameLib + ".dylib: \n\n" +
+        for (String libPath : runner.getResponses()) {
+            validatePath(nameLib + ".dylib", libPath,
+                    "Open a terminal and run the following command to install " + nameLib + ".dylib: \n\n" +
                                 "brew install --HEAD " + nameLib);
-                    }
-                    Logger.logDebug(nameLib + ".dylib found in: " + libPath);
-                    return libPath;
-                })
-                .collect(Collectors.toList());
+            Logger.logDebug("lib " + nameLib + ".dylib found at " + libPath);
+        }
+        return runner.getResponses();
     }
 
-    private List<String> checkDependencyLinks(String nameLib, List<String> libPaths) throws IOException, InterruptedException {
+    private void validatePath(String fileName, String filePath, String errorMessage) throws DeployException {
+        if (filePath == null || filePath.isEmpty() || !Files.exists(Path.of(filePath))) {
+            Logger.logInfo("Error finding " + fileName);
+            throw new DeployException(errorMessage);
+        }
+    }
+
+    private void validatePath(String fileName, List<String> filePaths, String errorMessage) throws DeployException {
+        if (filePaths == null || filePaths.isEmpty() || !Files.exists(Path.of(filePaths.get(0)))) {
+            Logger.logInfo("Error finding " + fileName);
+            throw new DeployException(errorMessage);
+        }
+    }
+
+    private List<String> checkDependencyLinks(String nameLib, List<String> libPaths) throws IOException, InterruptedException, DeployException {
         List<String> libLinks = new ArrayList<>();
         for (String libPath : libPaths) {
             // retrieve name of linked library
             String linkedLib = ProcessRunner.runProcessForSingleOutput("readlink " + nameLib, "readlink", libPath);
             Logger.logDebug(nameLib + ".dylib link of: " + linkedLib);
             if (linkedLib == null || linkedLib.isEmpty()) {
-                throw new RuntimeException("Error finding " + nameLib + ".dylib version");
+                throw new DeployException("Error finding " + nameLib + ".dylib version");
             }
             libLinks.add(linkedLib);
         }
@@ -268,7 +282,7 @@ public class Deploy {
         return false;
     }
 
-    private boolean installIOSDeploy() throws IOException, InterruptedException {
+    private boolean installIOSDeploy() throws IOException, InterruptedException, DeployException {
         Logger.logInfo("ios-deploy not found. It will be installed now");
 
         ProcessRunner runner = new ProcessRunner("brew", "install", "--HEAD", "ios-deploy");
@@ -276,6 +290,6 @@ public class Deploy {
             Logger.logDebug("ios-deploy installed");
             return true;
         }
-        throw new RuntimeException("Error installing ios-deploy. See detailed message above on how to proceed. Then try to deploy again");
+        throw new DeployException("Error installing ios-deploy. See detailed message above on how to proceed. Then try to deploy again");
     }
 }

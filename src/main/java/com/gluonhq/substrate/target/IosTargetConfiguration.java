@@ -38,6 +38,7 @@ import com.gluonhq.substrate.util.ProcessRunner;
 import com.gluonhq.substrate.util.XcodeUtils;
 import com.gluonhq.substrate.util.ios.CodeSigning;
 import com.gluonhq.substrate.util.ios.Deploy;
+import com.gluonhq.substrate.util.ios.DeployException;
 import com.gluonhq.substrate.util.ios.InfoPlist;
 
 import java.io.FileInputStream;
@@ -183,15 +184,21 @@ public class IosTargetConfiguration extends PosixTargetConfiguration {
             // without signing, app can't be deployed
             return true;
         }
-        Deploy deploy = new Deploy();
-        deploy.addDebugSymbolInfo(paths.getAppPath(), projectConfiguration.getAppName());
-        String appPath = paths.getAppPath().resolve(projectConfiguration.getAppName() + ".app").toString();
-        if (isSimulator()) {
-            // TODO: launchOnSimulator(appPath);
-            return false;
-        } else {
-            return deploy.install(appPath);
+        try {
+            Deploy deploy = new Deploy();
+            deploy.addDebugSymbolInfo(paths.getAppPath(), projectConfiguration.getAppName());
+            String appPath = paths.getAppPath().resolve(projectConfiguration.getAppName() + ".app").toString();
+            if (isSimulator()) {
+                // TODO: launchOnSimulator(appPath);
+                return false;
+            } else {
+                return deploy.install(appPath);
+            }
+        } catch (DeployException e) {
+            Logger.logInfo("Error deploying: " + e.getMessage());
+            System.exit(-1);
         }
+        return false;
     }
 
     @Override
