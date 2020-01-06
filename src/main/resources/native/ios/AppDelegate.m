@@ -25,31 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#import <UIKit/UIKit.h>
-#include <stdarg.h>
-
-static __inline__ void gvmlog(NSString* format, ...)
-{
-    va_list argList;
-    va_start(argList, format);
-    NSString* formattedMessage = [[NSString alloc] initWithFormat: format arguments: argList];
-    va_end(argList);
-    fprintf(stderr, "[GVM] %s\n", [formattedMessage UTF8String]);
-    [formattedMessage release];
-}
-
-#ifdef GVM_VERBOSE
-    #define gvmlog(MSG, ...) gvmlog(MSG, ## __VA_ARGS__ )
-#else
-    #define gvmlog(MSG, ...) (void) 0
-#endif
-
-@interface AppDelegate : UIResponder <UIApplicationDelegate>
-
-@property (strong, nonatomic) UIWindow *window;
-
-
-@end
+#import "AppDelegate.h"
+// #import "Push.h"
 
 int startGVM();
 
@@ -58,14 +35,6 @@ extern void *IsolateEnterStub__JavaMainWrapper__run__5087f5482cc9a6abc971913ece4
 @interface AppDelegate ()
 
 @end
-
-int main(int argc, char * argv[]) {
-    @autoreleasepool {
-        return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate
- class]));
-    }
-}
-
 
 @implementation AppDelegate
 
@@ -78,6 +47,8 @@ int main(int argc, char * argv[]) {
     gvmlog(@"UIApplication launched!");
     [self performSelectorInBackground:@selector(startVM:) withObject:NULL];
     gvmlog(@"UIApplication started GVM in a separate thread");
+
+    NSLog(@"AppDelegate::didFinishLaunchingWithOptions %@",self);
     return YES;
 }
 
@@ -109,7 +80,6 @@ int main(int argc, char * argv[]) {
 
 @end
 
-
 int startGVM() {
     gvmlog(@"Starting GVM for ios");
 
@@ -117,8 +87,4 @@ int startGVM() {
 
     gvmlog(@"Finished running GVM, done with isolatehread");
     return 0;
-}
-
-void Java_jdk_net_MacOSXSocketOptions_keepAliveOptionsSupported0() {
-     fprintf(stderr, "MacOSXSocketOptions missing\n");
 }

@@ -309,7 +309,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
         }
         for( String fileName: getAdditionalHeaderFiles() ) {
             FileOps.copyResource(getAdditionalSourceFileLocation()  + fileName, workDir.resolve(fileName));
-            processBuilder.command().add(fileName);
+//            processBuilder.command().add(fileName);
         }
         processBuilder.command().addAll(getTargetSpecificCCompileFlags());
         processBuilder.directory(workDir.toFile());

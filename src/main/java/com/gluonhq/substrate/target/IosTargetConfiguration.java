@@ -52,7 +52,8 @@ import java.util.stream.Collectors;
 
 public class IosTargetConfiguration extends PosixTargetConfiguration {
 
-    private List<String> iosAdditionalSourceFiles = Collections.singletonList("AppDelegate.m");
+    private List<String> iosAdditionalSourceFiles = Arrays.asList("AppDelegate.m", "main.m", "Push.m");
+    private List<String> iosAdditionalHeaderFiles = Arrays.asList("AppDelegate.h", "Push.h");
 
     private static final List<String> ioslibs = Arrays.asList(
             "-lpthread", "-lz", "-lstrictmath", "-llibchelper",
@@ -131,6 +132,10 @@ public class IosTargetConfiguration extends PosixTargetConfiguration {
         return iosAdditionalSourceFiles;
     }
 
+    @Override
+    List<String> getAdditionalHeaderFiles() {
+        return iosAdditionalHeaderFiles;
+    }
     @Override
     List<String> getTargetSpecificObjectFiles() throws IOException {
         return FileOps.findFile( paths.getGvmPath(), "llvm.o").map( objectFile ->
