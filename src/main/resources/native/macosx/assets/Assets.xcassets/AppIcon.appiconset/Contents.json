@@ -1,0 +1,68 @@
+{
+    "images" : [
+        {
+            "idiom" : "mac",
+            "size" : "16x16",
+            "filename" : "Gluon-icon-16@1x.png",
+            "scale" : "1x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "16x16",
+            "filename" : "Gluon-icon-16@2x.png",
+            "scale" : "2x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "32x32",
+            "filename" : "Gluon-icon-32@1x.png",
+            "scale" : "1x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "32x32",
+            "filename" : "Gluon-icon-32@2x.png",
+            "scale" : "2x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "128x128",
+            "filename" : "Gluon-icon-128@1x.png",
+            "scale" : "1x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "128x128",
+            "filename" : "Gluon-icon-128@2x.png",
+            "scale" : "2x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "256x256",
+            "filename" : "Gluon-icon-256@1x.png",
+            "scale" : "1x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "256x256",
+            "filename" : "Gluon-icon-256@2x.png",
+            "scale" : "2x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "512x512",
+            "filename" : "Gluon-icon-512@1x.png",
+            "scale" : "1x"
+        },
+        {
+            "idiom" : "mac",
+            "size" : "512x512",
+            "filename" : "Gluon-icon-512@2x.png",
+            "scale" : "2x"
+        }
+    ],
+    "info" : {
+        "version" : 1,
+        "author" : "xcode"
+    }
+}
