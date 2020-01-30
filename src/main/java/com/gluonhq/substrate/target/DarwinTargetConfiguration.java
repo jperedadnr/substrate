@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Gluon
+ * Copyright (c) 2019, 2020, Gluon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,11 +29,19 @@ package com.gluonhq.substrate.target;
 
 import com.gluonhq.substrate.model.InternalProjectConfiguration;
 import com.gluonhq.substrate.model.ProcessPaths;
+import com.gluonhq.substrate.util.InfoPlist;
+import com.gluonhq.substrate.util.Logger;
+import com.gluonhq.substrate.util.ProcessRunner;
+import com.gluonhq.substrate.util.XcodeUtils;
+import com.gluonhq.substrate.util.darwin.MacInfoPlist;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class DarwinTargetConfiguration extends PosixTargetConfiguration {
@@ -115,6 +123,44 @@ public class DarwinTargetConfiguration extends PosixTargetConfiguration {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public boolean link() throws IOException, InterruptedException {
+        boolean result = super.link();
+
+        if (result) {
+            createInfoPlist(paths);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean runUntilEnd() throws IOException, InterruptedException {
+        Path app = paths.getAppPath().resolve(projectConfiguration.getAppName() + ".app")
+                .resolve("Contents").resolve("MacOS")
+                .resolve(Objects.requireNonNull(projectConfiguration.getAppName(), "Application name can't be null"));
+        if (!Files.exists(app)) {
+            throw new IOException("Application not found at path " + app.toString());
+        }
+        ProcessRunner runner = new ProcessRunner(app.toString());
+        runner.setInfo(true);
+        return runner.runProcess("run " + projectConfiguration.getAppName()) == 0;
+    }
+
+    @Override
+    List<String> getTargetSpecificLinkOutputFlags() {
+        String appName = projectConfiguration.getAppName();
+        Path appPath = paths.getAppPath().resolve(appName + ".app")
+                .resolve("Contents").resolve("MacOS");
+        if (!Files.exists(appPath)) {
+            try {
+                Files.createDirectories(appPath);
+            } catch (IOException e) {
+                Logger.logFatal(e, "Error creating path " + appPath);
+            }
+        }
+        return Arrays.asList("-o", appPath.resolve(appName).toString());
+    }
+
     private List<String> asListOfLibraryLinkFlags(List<String> libraries) {
         return libraries.stream()
                 .map(library -> "-l" + library)
@@ -131,5 +177,13 @@ public class DarwinTargetConfiguration extends PosixTargetConfiguration {
         return frameworks.stream()
                 .map(framework -> "-Wl,-framework," + framework)
                 .collect(Collectors.toList());
+    }
+
+    private void createInfoPlist(ProcessPaths paths) throws IOException {
+        InfoPlist infoPlist = new MacInfoPlist(paths, projectConfiguration, XcodeUtils.SDKS.MACOSX);
+        Path plist = infoPlist.processInfoPlist();
+        if (plist != null) {
+            Logger.logDebug("Plist at " + plist.toString());
+        }
     }
 }
