@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Gluon
+ * Copyright (c) 2019, 2020, Gluon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,8 @@ import com.gluonhq.substrate.util.ProcessRunner;
 import com.gluonhq.substrate.util.XcodeUtils;
 import com.gluonhq.substrate.util.ios.CodeSigning;
 import com.gluonhq.substrate.util.ios.Deploy;
-import com.gluonhq.substrate.util.ios.InfoPlist;
+import com.gluonhq.substrate.util.InfoPlist;
+import com.gluonhq.substrate.util.ios.IOSInfoPlist;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -265,13 +266,11 @@ public class IosTargetConfiguration extends PosixTargetConfiguration {
     }
 
     private void createInfoPlist(ProcessPaths paths) throws IOException {
-        InfoPlist infoPlist = new InfoPlist(paths, projectConfiguration, isSimulator() ?
+        InfoPlist infoPlist = new IOSInfoPlist(paths, projectConfiguration, isSimulator() ?
                 XcodeUtils.SDKS.IPHONESIMULATOR : XcodeUtils.SDKS.IPHONEOS);
         Path plist = infoPlist.processInfoPlist();
         if (plist != null) {
             Logger.logDebug("Plist at " + plist.toString());
-            FileOps.copyStream(new FileInputStream(plist.toFile()),
-                    paths.getAppPath().resolve(projectConfiguration.getAppName() + ".app").resolve(Constants.PLIST_FILE));
         }
     }
 

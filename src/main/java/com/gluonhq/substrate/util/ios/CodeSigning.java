@@ -30,7 +30,9 @@ package com.gluonhq.substrate.util.ios;
 import com.gluonhq.substrate.model.InternalProjectConfiguration;
 import com.gluonhq.substrate.model.ProcessPaths;
 import com.gluonhq.substrate.util.FileOps;
+import com.gluonhq.substrate.util.InfoPlist;
 import com.gluonhq.substrate.util.Logger;
+import com.gluonhq.substrate.util.NSDictionaryEx;
 import com.gluonhq.substrate.util.ProcessRunner;
 import com.gluonhq.substrate.util.XcodeUtils;
 

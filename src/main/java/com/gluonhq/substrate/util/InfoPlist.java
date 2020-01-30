@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Gluon
+ * Copyright (c) 2019, 2020, Gluon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.gluonhq.substrate.util.ios;
+package com.gluonhq.substrate.util;
 
 import com.dd.plist.NSArray;
 import com.dd.plist.NSDictionary;
@@ -34,12 +34,9 @@ import com.dd.plist.PropertyListParser;
 import com.gluonhq.substrate.Constants;
 import com.gluonhq.substrate.model.ProcessPaths;
 import com.gluonhq.substrate.model.InternalProjectConfiguration;
-import com.gluonhq.substrate.util.FileOps;
-import com.gluonhq.substrate.util.Logger;
-import com.gluonhq.substrate.util.ProcessRunner;
-import com.gluonhq.substrate.util.XcodeUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,26 +47,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class InfoPlist {
-
-    private static final List<String> assets = new ArrayList<>(Arrays.asList(
-            "Default-375w-667h@2x~iphone.png", "Default-414w-736h@3x~iphone.png", "Default-portrait@2x~ipad.png",
-            "Default-375w-812h-landscape@3x~iphone.png", "Default-568h@2x~iphone.png", "Default-portrait~ipad.png",
-            "Default-375w-812h@3x~iphone.png", "Default-landscape@2x~ipad.png", "Default@2x~iphone.png",
-            "Default-414w-736h-landscape@3x~iphone.png", "Default-414w-896h@3x~iphone.png", "Default-414w-896h-landscape@3x~iphone.png",
-            "Default-landscape~ipad.png", "iTunesArtwork",
-            "iTunesArtwork@2x"
-    ));
-
-    private static final List<String> iconAssets = new ArrayList<>(Arrays.asList(
-            "Contents.json", "Gluon-app-store-icon-1024@1x.png", "Gluon-ipad-app-icon-76@1x.png", "Gluon-ipad-app-icon-76@2x.png",
-            "Gluon-ipad-notifications-icon-20@1x.png", "Gluon-ipad-notifications-icon-20@2x.png",
-            "Gluon-ipad-pro-app-icon-83.5@2x.png", "Gluon-ipad-settings-icon-29@1x.png", "Gluon-ipad-settings-icon-29@2x.png",
-            "Gluon-ipad-spotlight-icon-40@1x.png","Gluon-ipad-spotlight-icon-40@2x.png","Gluon-iphone-app-icon-60@2x.png",
-            "Gluon-iphone-app-icon-60@3x.png","Gluon-iphone-notification-icon-20@2x.png", "Gluon-iphone-notification-icon-20@3x.png",
-            "Gluon-iphone-spotlight-icon-40@2x.png", "Gluon-iphone-spotlight-icon-40@3x.png", "Gluon-iphone-spotlight-settings-icon-29@2x.png",
-            "Gluon-iphone-spotlight-settings-icon-29@3x.png"
-    ));
+public abstract class InfoPlist {
 
     private final XcodeUtils.SDKS sdk;
     private final InternalProjectConfiguration projectConfiguration;
@@ -77,13 +55,12 @@ public class InfoPlist {
     private final String sourceOS;
     private final XcodeUtils xcodeUtil;
 
-    private final Path appPath;
+    protected final Path appPath;
     private final Path rootPath;
     private final Path tmpPath;
 
     private Path partialPListDir;
     private String bundleId;
-    private String minOSVersion = "11.0";
 
     public InfoPlist(ProcessPaths paths, InternalProjectConfiguration projectConfiguration, XcodeUtils.SDKS sdk) throws IOException {
         this.paths = Objects.requireNonNull(paths);
@@ -96,6 +73,16 @@ public class InfoPlist {
         tmpPath = paths.getTmpPath();
     }
 
+    protected abstract String getPlatformResourceFolder();
+    protected abstract String getMinOSVersion();
+    protected abstract Path getAppPath();
+    protected abstract Path getExePath();
+    protected abstract Path getOutputPath();
+    protected abstract List<String> getPlatformAssets();
+    protected abstract List<String> getPlatformIconAssets();
+    protected abstract List<String> getPlatformOtherFiles();
+    protected abstract List<String> getPlatformDevices();
+
     public Path processInfoPlist() throws IOException {
         String appName = projectConfiguration.getAppName();
         String executableName = getExecutableName(appName, sourceOS);
@@ -104,30 +91,38 @@ public class InfoPlist {
         Path userPlist = rootPath.resolve(Constants.PLIST_FILE);
         boolean inited = true;
         if (!Files.exists(userPlist)) {
-            Path iosPath = paths.getGenPath().resolve(sourceOS);
-            Path genPlist = iosPath.resolve(Constants.PLIST_FILE);
-            Path iosAssets = iosPath.resolve("assets");
+            Path genPath = paths.getGenPath().resolve(sourceOS);
+            Path genPlist = genPath.resolve(Constants.PLIST_FILE);
+            Path genAssets = genPath.resolve("assets");
             Logger.logDebug("Copy " + Constants.PLIST_FILE + " to " + genPlist.toString());
-            FileOps.copyResource("/native/ios/Default-Info.plist", genPlist);
-            InfoPlist.assets.forEach(a -> {
+
+            FileOps.copyResource(getPlatformResourceFolder() + Constants.PLIST_FILE, genPlist);
+            getPlatformAssets().forEach(a -> {
+                    try {
+                        FileOps.copyResource(getPlatformResourceFolder() + "assets/" + a, genAssets.resolve(a));
+                    } catch (IOException e) {
+                        Logger.logFatal(e, "Error copying resource " + a + ": " + e.getMessage());
+                    }
+                });
+            getPlatformOtherFiles().forEach(f -> {
                 try {
-                    FileOps.copyResource("/native/ios/assets/" + a, iosAssets.resolve(a));
+                    FileOps.copyResource(getPlatformResourceFolder() + f, genPath.resolve(f));
+                } catch (IOException e) {
+                    Logger.logFatal(e, "Error copying resource " + f + ": " + e.getMessage());
+                }
+            });
+            getPlatformIconAssets().forEach(a -> {
+                try {
+                    FileOps.copyResource(getPlatformResourceFolder() + "assets/Assets.xcassets/AppIcon.appiconset/" + a,
+                            genAssets.resolve("Assets.xcassets").resolve("AppIcon.appiconset").resolve(a));
                 } catch (IOException e) {
                     Logger.logFatal(e, "Error copying resource " + a + ": " + e.getMessage());
                 }
             });
-            iconAssets.forEach(a -> {
-                try {
-                    FileOps.copyResource("/native/ios/assets/Assets.xcassets/AppIcon.appiconset/" + a,
-                            iosAssets.resolve("Assets.xcassets").resolve("AppIcon.appiconset").resolve(a));
-                } catch (IOException e) {
-                    Logger.logFatal(e, "Error copying resource " + a + ": " + e.getMessage());
-                }
-            });
-            FileOps.copyResource("/native/ios/assets/Assets.xcassets/Contents.json",
-                    iosAssets.resolve("Assets.xcassets").resolve("Contents.json"));
-            copyVerifyAssets(iosAssets);
-            Logger.logInfo("Default iOS resources generated in " + iosPath.toString() + ".\n" +
+            FileOps.copyResource(getPlatformResourceFolder() + "assets/Assets.xcassets/Contents.json",
+                    genAssets.resolve("Assets.xcassets").resolve("Contents.json"));
+            copyVerifyAssets(genAssets);
+            Logger.logInfo("Default " + getPlatformResourceFolder() + " resources generated in " + genPath.toString() + ".\n" +
                     "Consider copying them to " + rootPath.toString() + " before performing any modification");
             inited = false;
         } else {
@@ -140,10 +135,10 @@ public class InfoPlist {
             throw new IOException("Error: plist not found");
         }
 
-        Path executable = appPath.resolve(executableName);
+        Path executable = getExePath().resolve(executableName);
         if (!Files.exists(executable)) {
             String errorMessage = "The executable " + executable + " doesn't exist.";
-            if (!appName.equals(executableName) && Files.exists(appPath.resolve(appName))) {
+            if (!appName.equals(executableName) && Files.exists(executable.resolve(appName))) {
                 errorMessage += "\nMake sure the CFBundleExecutable key in the " + plist.toString() + " file is set to: " + appName;
             }
             throw new IOException(errorMessage);
@@ -162,8 +157,8 @@ public class InfoPlist {
             }
             dict.put("DTPlatformName", xcodeUtil.getPlatformName());
             dict.put("DTSDKName", xcodeUtil.getSDKName());
-            dict.put("MinimumOSVersion", "11.0");
-            dict.put("CFBundleSupportedPlatforms", new NSArray(new NSString("iPhoneOS")));
+            dict.put("MinimumOSVersion", getMinOSVersion());
+            dict.put("CFBundleSupportedPlatforms", new NSArray(new NSString(sdk.getName())));
             dict.put("DTPlatformVersion", xcodeUtil.getPlatformVersion());
             dict.put("DTPlatformBuild", xcodeUtil.getPlatformBuild());
             dict.put("DTSDKBuild", xcodeUtil.getPlatformBuild());
@@ -187,19 +182,25 @@ public class InfoPlist {
                             }
                         });
             }
-            orderedDict.put("MinimumOSVersion", minOSVersion != null ? minOSVersion : "11.0");
 
-            //             BinaryPropertyListWriter.write(new File(appDir, "Info.plist"), orderedDict);
-            orderedDict.saveAsBinary(appPath.resolve("Info.plist"));
+            orderedDict.saveAsBinary(getAppPath().resolve("Info.plist"));
             orderedDict.saveAsXML(tmpPath.resolve("Info.plist"));
             orderedDict.getEntrySet().forEach(e -> {
                         if ("CFBundleIdentifier".equals(e.getKey())) {
-                            Logger.logDebug("Bundle ID = "+e.getValue().toString());
+                            Logger.logDebug("Bundle ID = " + e.getValue().toString());
                             bundleId = e.getValue().toString();
                         }
                         Logger.logDebug("Info.plist Entry: " + e);
                     }
             );
+            getPlatformOtherFiles().forEach(f -> {
+                try {
+                    FileOps.copyStream(new FileInputStream(plist.getParent().resolve(f).toFile()),
+                            getAppPath().resolve(f));
+                } catch (IOException e) {
+                    Logger.logFatal(e, "Error copying resource " + f + ": " + e.getMessage());
+                }
+            });
             return plist;
         } catch (Exception ex) {
             Logger.logFatal(ex, "Could not process property list");
@@ -207,7 +208,7 @@ public class InfoPlist {
         return null;
     }
 
-    static Path getPlistPath(ProcessPaths paths, String sourceName) {
+    public static Path getPlistPath(ProcessPaths paths, String sourceName) {
         Path userPlist = Objects.requireNonNull(paths).getSourcePath()
                 .resolve(Objects.requireNonNull(sourceName)).resolve(Constants.PLIST_FILE);
         if (Files.exists(userPlist)) {
@@ -245,7 +246,7 @@ public class InfoPlist {
                 "Please check the src/ios/Default-info.plist file and make sure CFBundleExecutable key exists");
     }
 
-    static String getBundleId(Path plist, String mainClassName) {
+    public static String getBundleId(Path plist, String mainClassName) {
         if (plist == null) {
             String className = mainClassName;
             if (className.contains("/")) {
@@ -270,15 +271,12 @@ public class InfoPlist {
 
         Logger.logSevere("Error: no bundleId was found");
         throw new RuntimeException("No bundleId was found.\n " +
-                "Please check the src/ios/Default-info.plist file and make sure CFBundleIdentifier key exists");
+                "Please check the " + plist.toString() + " file and make sure CFBundleIdentifier key exists");
     }
 
     private void copyVerifyAssets(Path resourcePath) throws IOException {
         if (resourcePath == null || !Files.exists(resourcePath)) {
             throw new RuntimeException("Error: invalid path " + resourcePath);
-        }
-        if (minOSVersion == null) {
-            minOSVersion = "11.0";
         }
         Files.walk(resourcePath, 1).forEach(p -> {
             if (Files.isDirectory(p)) {
@@ -286,20 +284,21 @@ public class InfoPlist {
                     try {
                         Logger.logDebug("Calling verifyAssetCatalog for " + p.toString());
                         verifyAssetCatalog(p, sdk.name().toLowerCase(Locale.ROOT),
-                                minOSVersion,
-                                Arrays.asList("iphone", "ipad"), "");
+                                getMinOSVersion(),
+                                getPlatformDevices(),
+                                getOutputPath());
                     } catch (Exception ex) {
                         Logger.logFatal(ex, "Failed creating directory " + p);
                     }
                 }
             } else {
-                Path targetPath = appPath.resolve(resourcePath.relativize(p));
+                Path targetPath = getAppPath().resolve(resourcePath.relativize(p));
                 FileOps.copyFile(p, targetPath);
             }
         });
     }
 
-    private void verifyAssetCatalog(Path resourcePath, String platform, String minOSVersion, List<String> devices, String output) throws Exception {
+    private void verifyAssetCatalog(Path resourcePath, String platform, String minOSVersion, List<String> devices, Path outputPath) throws Exception {
         List<String> commandsList = new ArrayList<>();
         commandsList.add("--output-format");
         commandsList.add("human-readable-text");
@@ -307,9 +306,7 @@ public class InfoPlist {
         final String appIconSet = ".appiconset";
         final String launchImage = ".launchimage";
 
-        File inputDir = resourcePath.toFile();
-        File outputDir = new File(appPath.toFile(), output);
-        Files.createDirectories(outputDir.toPath());
+        Files.createDirectories(outputPath);
         Files.walk(resourcePath).forEach(p -> {
             if (Files.isDirectory(p) && p.toString().endsWith(appIconSet)) {
                 String appIconSetName = p.getFileName().toString()
@@ -356,7 +353,7 @@ public class InfoPlist {
 
         ProcessRunner args = new ProcessRunner(actoolForSdk);
         args.addArgs(commandsList);
-        args.addArgs("--compress-pngs", "--compile", outputDir.toString(), inputDir.toString());
+        args.addArgs("--compress-pngs", "--compile", outputPath.toString(), resourcePath.toString());
         int result = args.runProcess("actool");
         if (result != 0) {
             throw new RuntimeException("Error verifyAssetCatalog");
@@ -364,10 +361,10 @@ public class InfoPlist {
     }
 
     /**
-     * Scans the src/ios/assets folder for possible folders other than
+     * Scans the src/{ios|macosx}/assets folder for possible folders other than
      * Assets.cassets (which is compressed with actool),
      * and copy them directly to the app folder
-     * @param resourcePath the path for ios assets
+     * @param resourcePath the path for {ios|macosx} assets
      * @throws IOException
      */
     private void copyOtherAssets(Path resourcePath) throws IOException {
@@ -379,7 +376,7 @@ public class InfoPlist {
                 .filter(r -> !r.toString().endsWith("Assets.xcassets"))
                 .collect(Collectors.toList());
         for (Path assetPath : otherAssets) {
-            Path targetPath = appPath.resolve(resourcePath.relativize(assetPath));
+            Path targetPath = getAppPath().resolve(resourcePath.relativize(assetPath));
             if (Files.exists(targetPath)) {
                 FileOps.deleteDirectory(targetPath);
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Gluon
+ * Copyright (c) 2019, 2020, Gluon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.gluonhq.substrate.util.ios;
+package com.gluonhq.substrate.util;
 
 import com.dd.plist.NSArray;
 import com.dd.plist.NSData;
@@ -36,7 +36,6 @@ import com.dd.plist.NSObject;
 import com.dd.plist.NSString;
 import com.dd.plist.PropertyListFormatException;
 import com.dd.plist.PropertyListParser;
-import com.gluonhq.substrate.util.Logger;
 import org.bouncycastle.cms.CMSSignedData;
 import org.xml.sax.SAXException;
 

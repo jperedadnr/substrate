@@ -1,7 +1,5 @@
 package com.gluonhq.substrate.util;
 
-import com.gluonhq.substrate.util.ios.NSDictionaryEx;
-
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,6 +26,10 @@ public class XcodeUtils {
                 absolutePath = getSdkDir(name.toLowerCase(Locale.ROOT));
             }
             return absolutePath;
+        }
+
+        public String getName() {
+            return name;
         }
 
         private String getSdkDir(String name) {
