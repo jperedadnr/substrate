@@ -67,7 +67,7 @@ import java.util.stream.Stream;
  */
 public abstract class AbstractTargetConfiguration implements TargetConfiguration {
 
-    private static final String URL_CLIBS_ZIP = "http://download2.gluonhq.com/substrate/clibs/${osarch}.zip";
+    private static final String URL_CLIBS_ZIP = "https://download2.gluonhq.com/substrate/clibs/${osarch}.zip";
     private static final List<String> RESOURCES_BY_EXTENSION = Arrays.asList(
             "frag", "vert", "fxml", "css", "gls", "ttf", "xml",
             "png", "jpg", "jpeg", "gif", "bmp",
@@ -105,7 +105,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
      */
     @Override
     public boolean compile(String cp) throws IOException, InterruptedException {
-        String classPath = processClassPath(cp);
+        cp = processClassPath(cp);
         extractNativeLibs(cp);
         Triplet target =  projectConfiguration.getTargetTriplet();
         String suffix = target.getArchOs();
@@ -156,7 +156,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
         }
         compileBuilder.command().add("-Dsvm.platform=org.graalvm.nativeimage.Platform$"+jniPlatform);
         compileBuilder.command().add("-cp");
-        compileBuilder.command().add(classPath);
+        compileBuilder.command().add(cp);
         compileBuilder.command().addAll(projectConfiguration.getCompilerArgs());
         compileBuilder.command().add(mainClassName);
 
@@ -218,6 +218,11 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
 
         linkBuilder.command().add(objectFile.toString());
         linkBuilder.command().addAll(getTargetSpecificObjectFiles());
+
+        getNativeCodeList().stream()
+            .map(s -> s.replaceAll("\\..*", "." + getObjectFileExtension()))
+            .distinct()
+            .forEach(sourceFile -> linkBuilder.command().add(gvmAppPath.resolve(sourceFile).toString()));
 
         getTargetSpecificLinkLibraries().forEach(linkBuilder.command()::add);
         linkBuilder.command().addAll(getTargetSpecificLinkFlags(projectConfiguration.isUseJavaFX(), projectConfiguration.isUsePrismSW()));
@@ -282,7 +287,15 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
      */
     @Override
     public boolean runUntilEnd() throws IOException, InterruptedException {
-        Process runProcess = startAppProcess(paths.getAppPath(), projectConfiguration.getAppName());
+        Path appPath = Objects.requireNonNull(paths.getAppPath(),
+                "Application path can't be null");
+        String appName = Objects.requireNonNull(projectConfiguration.getAppName(),
+                "Application name can't be null");
+        Path app = appPath.resolve(appName);
+        if (!Files.exists(app)) {
+            throw new IOException("Application not found at path " + app.toString());
+        }
+        Process runProcess = startAppProcess(appPath, appName);
         InputStream is = runProcess.getInputStream();
         asynPrintFromInputStream(is);
         int result = runProcess.waitFor();
@@ -313,15 +326,27 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
             processBuilder.command().add("-DGVM_VERBOSE");
         }
         processBuilder.command().addAll(getTargetSpecificCCompileFlags());
+
+        processBuilder.command().add("-I" + workDir.toString());
+
         for( String fileName: getAdditionalSourceFiles() ) {
             FileOps.copyResource(getAdditionalSourceFileLocation()  + fileName, workDir.resolve(fileName));
             processBuilder.command().add(fileName);
         }
-        for( String fileName: getAdditionalHeaderFiles() ) {
-            FileOps.copyResource(getAdditionalSourceFileLocation()  + fileName, workDir.resolve(fileName));
+        
+        Path nativeCodeDir = paths.getNativeCodePath();
+        if (Files.isDirectory(nativeCodeDir)) {
+            FileOps.copyDirectory(nativeCodeDir, workDir);
+        }
+
+        for( String fileName: getNativeCodeList() ) {
             processBuilder.command().add(fileName);
         }
-        processBuilder.command().addAll(getTargetSpecificCCompileFlags());
+
+        for( String fileName: getAdditionalHeaderFiles() ) {
+            FileOps.copyResource(getAdditionalSourceFileLocation()  + fileName, workDir.resolve(fileName));
+        }
+  
         processBuilder.directory(workDir.toFile());
         String cmds = String.join(" ", processBuilder.command());
         processBuilder.redirectErrorStream(true);
@@ -754,6 +779,22 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
     List<String> getTargetSpecificLinkOutputFlags() {
         String appName = projectConfiguration.getAppName();
         return Arrays.asList("-o", getAppPath(appName));
+    }
+
+    protected List<String> getTargetNativeCodeExtensions() {
+        return Arrays.asList(".c");
+    }
+
+    protected List<String> getNativeCodeList() throws IOException {
+        Path nativeCodeDir = paths.getNativeCodePath();
+        if (!Files.exists(nativeCodeDir)) {
+            return Collections.emptyList();
+        }
+        List<String> extensions = getTargetNativeCodeExtensions();
+        return Files.list(nativeCodeDir)
+            .map(p -> p.getFileName().toString())
+            .filter(s -> extensions.stream().anyMatch(e -> s.endsWith(e)))
+            .collect(Collectors.toList());
     }
 
     List<String> getTargetSpecificLinkFlags(boolean useJavaFX, boolean usePrismSW) {
