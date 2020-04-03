@@ -30,24 +30,31 @@ package com.gluonhq.substrate.util;
 import com.oracle.javafx.scenebuilder.kit.fxom.FXOMDocument;
 import com.oracle.javafx.scenebuilder.kit.fxom.FXOMObject;
 import com.oracle.javafx.scenebuilder.kit.fxom.FXOMProperty;
+import com.oracle.javafx.scenebuilder.kit.metadata.util.PropertyName;
 import javafx.fxml.FXMLLoader;
 import javafx.application.Platform;
 
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
@@ -110,9 +117,8 @@ public class FXMLUtils {
         }
         return map;
     }
-    public static List<Method> getStaticMethods() {
+    public static List<Method> getMethods() {
         return methods.stream()
-                .filter(m -> Modifier.isStatic(m.getModifiers()))
                 .distinct()
                 .sorted(Comparator.comparing(Method::getName))
                 .collect(Collectors.toList());
@@ -134,17 +140,49 @@ public class FXMLUtils {
 
     private static void scanFXMLFile(Path location, String fxmlString) throws IOException {
         FXOMDocument fxomDocument = new FXOMDocument(fxmlString, location.toFile().toURI().toURL(), myClassLoader, null);
-        fxomDocument.getFxomRoot().collectDeclaredClasses()
-                .forEach(dc -> imports.add(dc.getCanonicalName()));
-
         FXOMObject root = fxomDocument.getFxomRoot();
+        imports.addAll(root.collectDeclaredClasses().stream()
+                .map(Class::getCanonicalName)
+                .collect(Collectors.toList()));
+
         imports.addAll(findPropertyClasses(root.getChildObjects().toArray(FXOMObject[]::new)));
         imports.addAll(findPropertyClasses(root));
 
         controllers.add(root.getFxController());
 
-        methods.addAll(findStaticMethods(root.getChildObjects().toArray(FXOMObject[]::new)));
-        methods.addAll(findStaticMethods(root));
+        findAllMethods(Collections.singletonList(root));
+    }
+
+    private static void findAllMethods(List<FXOMObject> objs) {
+        methods.addAll(objs.stream()
+                .flatMap(fxomObject -> findMethodsForObject(fxomObject).stream())
+                .collect(Collectors.toList()));
+
+        objs.forEach(o -> findAllMethods(o.getChildObjects()));
+    }
+
+    private static List<Method> findMethodsForObject(FXOMObject o) {
+        List<PropertyName> properties = o.collectPropertiesT().stream()
+                .map(FXOMProperty::getName)
+                .collect(Collectors.toList());
+
+        // static methods
+        List<Method> methods = properties.stream()
+                .filter(p -> p.getResidenceClass() != null)
+                .flatMap(p -> Stream.of(p.getResidenceClass().getMethods())
+                        .filter(m -> m.toString().toLowerCase(Locale.ROOT).contains(p.getName().toLowerCase(Locale.ROOT))))
+                .collect(Collectors.toList());
+
+        // non-static methods
+        final BeanPropertyIntrospector bpi = new BeanPropertyIntrospector(o.getSceneGraphObject());
+        methods.addAll(properties.stream()
+                .filter(p -> p.getResidenceClass() == null)
+                .map(PropertyName::getName)
+                .filter(Objects::nonNull)
+                .flatMap(n -> bpi.getMethodsForProperty(n).stream())
+                .distinct()
+                .collect(Collectors.toList()));
+        return methods;
     }
 
     private static Set<String> findPropertyClasses(FXOMObject... fxomObjects) {
@@ -157,19 +195,9 @@ public class FXMLUtils {
                 .collect(Collectors.toSet());
     }
 
-    private static Set<Method> findStaticMethods(FXOMObject... fxomObjects) {
-        return Arrays.stream(fxomObjects)
-                .map(FXOMObject::collectPropertiesT)
-                .flatMap(List::stream)
-                .map(FXOMProperty::getName)
-                .filter(prop -> prop.getResidenceClass() != null)
-                .flatMap(prop -> Stream.of(prop.getResidenceClass().getMethods()))
-                .collect(Collectors.toSet());
-    }
-
     static class TransientClassLoader extends URLClassLoader {
 
-        public TransientClassLoader(URL[] urls, ClassLoader parentClassLoader) {
+        TransientClassLoader(URL[] urls, ClassLoader parentClassLoader) {
             super(urls, parentClassLoader);
         }
 
@@ -189,6 +217,46 @@ public class FXMLUtils {
                 }
             }
             return result;
+        }
+    }
+
+    static class BeanPropertyIntrospector {
+
+        private final PropertyDescriptor[] propertyDescriptors;
+
+        BeanPropertyIntrospector(Object object) {
+            Objects.requireNonNull(object);
+            try {
+                final BeanInfo beanInfo = Introspector.getBeanInfo(object.getClass());
+                this.propertyDescriptors = beanInfo.getPropertyDescriptors();
+            } catch(IntrospectionException x) {
+                throw new RuntimeException(x);
+            }
+        }
+
+        List<Method> getMethodsForProperty(String propertyName) {
+            final PropertyDescriptor d = findDescriptor(propertyName);
+            List<Method> result = new ArrayList<>();
+            if (d != null) {
+                Method readMethod = d.getReadMethod();
+                if (readMethod != null) {
+                    result.add(readMethod);
+                }
+                Method writeMethod = d.getWriteMethod();
+                if (writeMethod != null) {
+                    result.add(writeMethod);
+                }
+            }
+            return result;
+        }
+
+        private PropertyDescriptor findDescriptor(String propertyName) {
+            int i = 0;
+            while (i < propertyDescriptors.length
+                    && !propertyDescriptors[i].getName().equals(propertyName)) {
+                i++;
+            }
+            return i < propertyDescriptors.length ? propertyDescriptors[i] : null;
         }
     }
 }

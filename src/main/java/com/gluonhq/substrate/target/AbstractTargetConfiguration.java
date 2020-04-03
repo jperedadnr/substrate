@@ -129,7 +129,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
 
         processFXMLFiles(processedClasspath);
 
-        if (!compileAdditionalSources()) {
+        if (compileAdditionalSources()) {
             return false;
         }
 
@@ -699,9 +699,9 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
         System.out.println("Controllers");
         System.out.println("===========");
         FXMLUtils.getControllers().forEach(System.err::println);
-        System.out.println("Static Methods");
-        System.out.println("==============");
-        FXMLUtils.getStaticMethods().forEach(System.err::println);
+        System.out.println("Methods");
+        System.out.println("=======");
+        FXMLUtils.getMethods().forEach(System.err::println);
         System.out.println("==============");
     }
 
