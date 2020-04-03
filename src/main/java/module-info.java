@@ -3,4 +3,8 @@ module com.gluonhq.substrate {
     requires dd.plist;
     requires java.xml;
     requires bcpkix.jdk15on;
+
+    requires com.gluonhq.scenebuilder.kit;
+    requires javafx.graphics;
+    requires javafx.fxml;
 }

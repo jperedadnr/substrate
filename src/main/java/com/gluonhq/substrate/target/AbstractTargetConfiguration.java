@@ -33,6 +33,7 @@ import com.gluonhq.substrate.model.ClassPath;
 import com.gluonhq.substrate.model.InternalProjectConfiguration;
 import com.gluonhq.substrate.model.ProcessPaths;
 import com.gluonhq.substrate.model.Triplet;
+import com.gluonhq.substrate.util.FXMLUtils;
 import com.gluonhq.substrate.util.FileDeps;
 import com.gluonhq.substrate.util.FileOps;
 import com.gluonhq.substrate.util.Logger;
@@ -40,6 +41,7 @@ import com.gluonhq.substrate.util.ProcessRunner;
 import com.gluonhq.substrate.util.Strings;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -124,6 +126,8 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
         String processedClasspath = validateCompileRequirements();
 
         extractNativeLibs(processedClasspath);
+
+        processFXMLFiles(processedClasspath);
 
         if (!compileAdditionalSources()) {
             return false;
@@ -677,6 +681,28 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
             linkFlags.addAll(getTargetSpecificNativeLibsFlags(libPath, libs));
         }
         return linkFlags;
+    }
+
+    private void processFXMLFiles(String classPath) throws IOException, InterruptedException {
+        Logger.logDebug("processFXMLFiles::FXML Utils");
+        if (!projectConfiguration.isUseJavaFX()) {
+            return;
+        }
+        final List<File> jars = new ClassPath(classPath).getJars(true);
+        if (jars.stream().noneMatch(j -> j.getAbsolutePath().contains("javafx-fxml"))) {
+            return;
+        }
+        FXMLUtils.resolveFXMLconfig(paths.getAgentPath(), jars);
+        System.out.println("Imports");
+        System.out.println("=======");
+        FXMLUtils.getImports().forEach(System.err::println);
+        System.out.println("Controllers");
+        System.out.println("===========");
+        FXMLUtils.getControllers().forEach(System.err::println);
+        System.out.println("Static Methods");
+        System.out.println("==============");
+        FXMLUtils.getStaticMethods().forEach(System.err::println);
+        System.out.println("==============");
     }
 
     private boolean validateCompileResult(int result) throws IOException {

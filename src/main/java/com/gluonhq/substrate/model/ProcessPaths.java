@@ -40,6 +40,7 @@ public class ProcessPaths {
     private Path clientPath;
     private Path appPath;
     private Path gvmPath;
+    private Path agentPath;
     private Path genPath;
     private Path tmpPath;
     private Path logPath;
@@ -54,6 +55,7 @@ public class ProcessPaths {
      *                 |-- $appName
      *                 |-- lib
      *                 |-- log
+     *                 |-- agent
      *                 |-- tmp
      *             |-- $appName.app
      *             |-- $appName.app.dSYM
@@ -73,6 +75,7 @@ public class ProcessPaths {
         genPath = Files.createDirectories(appPath.resolve(Constants.GEN_PATH));
         tmpPath = Files.createDirectories(gvmPath.resolve(Constants.TMP_PATH));
         logPath = Files.createDirectories(gvmPath.resolve(Constants.LOG_PATH));
+        agentPath = Files.createDirectories(gvmPath.resolve(Constants.AGENT_PATH));
         sourcePath = clientPath.getParent().getParent().resolve(Constants.SOURCE_PATH);
         nativeCodePath = sourcePath.getParent().resolve(Constants.NATIVE_CODE_PATH);
     }
@@ -107,6 +110,10 @@ public class ProcessPaths {
 
     public Path getLogPath() {
         return logPath;
+    }
+
+    public Path getAgentPath() {
+        return agentPath;
     }
 
     public Path getNativeCodePath() {
