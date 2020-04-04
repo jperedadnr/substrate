@@ -129,7 +129,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
 
         processFXMLFiles(processedClasspath);
 
-        if (compileAdditionalSources()) {
+        if (!compileAdditionalSources()) {
             return false;
         }
 
