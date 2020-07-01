@@ -78,8 +78,9 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
     private List<String> linkFlags = Arrays.asList("-target", "aarch64-linux-android21", "-fPIC", "-fuse-ld=gold",
             "-Wl,--rosegment,--gc-sections,-z,noexecstack", "-shared",
             "-landroid", "-llog", "-lffi", "-llibchelper");
+    // TODO: split WebView
     private List<String> javafxLinkFlags = Arrays.asList("-Wl,--whole-archive",
-            "-lprism_es2_monocle", "-lglass_monocle", "-ljavafx_font_freetype", "-ljavafx_iio", "-Wl,--no-whole-archive",
+            "-lprism_es2_monocle", "-lglass_monocle", "-ljavafx_font_freetype", "-ljavafx_iio", "-lwebview", "-Wl,--no-whole-archive",
             "-lGLESv2", "-lEGL", "-lfreetype");
     private final String capLocation = ANDROID_NATIVE_FOLDER + "cap/";
 
