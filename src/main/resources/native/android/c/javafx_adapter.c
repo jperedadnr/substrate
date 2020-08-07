@@ -29,7 +29,7 @@
 #include <string.h>
 #include "grandroid.h"
 
-lass nativeWebViewClass;
+jclass nativeWebViewClass;
 jobject nativeWebViewObj;
 jmethodID nativeWebView_init;
 jmethodID nativeWebView_loadUrl;
