@@ -162,7 +162,7 @@ Java_javafx_scene_control_skin_TextAreaSkinAndroid_hideSoftwareKeyboard(JNIEnv *
 void substrate_showWebView() {
     LOGE(stderr, "Substrate needs to show webview\n");
     ATTACH_DALVIK();
-    // registerJavaFXMethodHandles(dalvikEnv);
+    registerJavaFXMethodHandles(dalvikEnv);
     LOGE(stderr, "Substrate needs to show Android WebView\n");
     jobject tmpobj = (jobject)((*dalvikEnv)->NewObject(dalvikEnv, nativeWebViewClass, nativeWebView_init));
     nativeWebViewObj = (jobject)((*dalvikEnv)->NewGlobalRef(dalvikEnv, tmpobj));
