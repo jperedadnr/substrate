@@ -48,6 +48,9 @@ char *timeZone;
 
 int start_logger(const char *app_name);
 
+// TODO: remove once https://github.com/oracle/graal/issues/2713 is fixed
+int JNI_OnLoad_sunec(JavaVM *vm, void *reserved);
+
 const char *origargs[] = {
     "myapp",
     "-Djavafx.platform=android",
@@ -157,6 +160,9 @@ JNIEXPORT void JNICALL Java_com_gluonhq_helloandroid_MainActivity_startGraalApp(
     (*run_main)(argsize, graalArgs);
 
     LOGE(stderr, "called JavaMainWrapper_run\n");
+
+    // Invoke sunec
+    JNI_OnLoad_sunec(NULL, NULL);
 }
 
 // == expose window functionality to JavaFX native code == //
@@ -192,4 +198,24 @@ void getEnviron()
 void determineCPUFeatures()
 {
     LOGE(stderr,  "\n\n\ndetermineCpuFeaures\n");
+}
+
+void JVM_NativePath() {
+    fprintf(stderr, "We should never reach here (JVM_nativePath)\n");
+}
+
+void JVM_RawMonitorCreate() {
+    fprintf(stderr, "We should never reach here (JVM_RawMonitorCreate)\n");
+}
+
+void JVM_RawMonitorDestroy() {
+    fprintf(stderr, "We should never reach here (JVM_RawMonitorDestroy)\n");
+}
+
+void JVM_RawMonitorEnter() {
+    fprintf(stderr, "We should never reach here (JVM_RawMonitorEnter)\n");
+}
+
+void JVM_RawMonitorExit() {
+    fprintf(stderr, "We should never reach here (JVM_RawMonitorExit)\n");
 }

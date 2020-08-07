@@ -36,7 +36,6 @@ import com.gluonhq.substrate.model.ReleaseConfiguration;
 import com.gluonhq.substrate.util.FileOps;
 import com.gluonhq.substrate.util.Logger;
 import com.gluonhq.substrate.util.ProcessRunner;
-import com.gluonhq.substrate.util.Version;
 
 import java.io.File;
 import java.io.IOException;
@@ -96,9 +95,7 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
 
         Path clangguess = Paths.get(this.ndk, "toolchains", "llvm", "prebuilt", hostPlatformFolder, "bin", "clang");
         this.clang = Files.exists(clangguess) ? clangguess : null;
-        if (projectConfiguration.getGraalVersion().compareTo(new Version("20.1.0")) > 0) {
-            projectConfiguration.setBackend(Constants.BACKEND_LIR);
-        }
+        projectConfiguration.setBackend(Constants.BACKEND_LIR);
     }
 
     @Override
@@ -131,6 +128,7 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         copySubstrateLibraries();
         String configuration = generateSigningConfiguration();
 
+        fileDeps.checkAndroidPackages(sdk);
         ProcessRunner assembleDebug = new ProcessRunner(
                             getAndroidProjectPath().resolve("gradlew").toString(),
                             "-p", getAndroidProjectPath().toString(),
@@ -202,15 +200,13 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         ArrayList<String> flags = new ArrayList<String>(Arrays.asList(
                 "-H:-SpawnIsolates",
                 "-Dsvm.targetArch=" + projectConfiguration.getTargetTriplet().getArch(),
-                "-H:+UseOnlyWritableBootImageHeap",
+                "-H:+ForceNoROSectionRelocations",
+                "--libc=bionic",
                 "-H:+UseCAPCache",
                 "-H:CAPCacheDir=" + getCapCacheDir().toAbsolutePath().toString(),
                 "-H:CompilerBackend=" + projectConfiguration.getBackend()));
         if (projectConfiguration.isUseLLVM()) {
             flags.add("-H:CustomLD=" + ldlld.toAbsolutePath().toString());
-        }
-        if (projectConfiguration.getGraalVersion().compareTo(new Version("20.1.0")) > 0) {
-            flags.add("-H:+UseBionicC");
         }
         return flags;
     }
@@ -258,6 +254,11 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
     }
 
     @Override
+    protected List<Path> getStaticJDKLibPaths() throws IOException {
+        return Arrays.asList(fileDeps.getJavaSDKLibsPath());
+    }
+
+    @Override
     List<String> getTargetSpecificNativeLibsFlags(Path libPath, List<String> libs) {
         List<String> linkFlags = new ArrayList<>();
         linkFlags.add("-Wl,--whole-archive");
@@ -281,11 +282,6 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
     @Override
     List<String> getAdditionalHeaderFiles() {
         return androidAdditionalHeaderFiles;
-    }
-
-    @Override
-    boolean useGraalVMJavaStaticLibraries() {
-        return false;
     }
 
     private Path getAndroidProjectPath() {
@@ -338,8 +334,10 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         FileOps.deleteDirectory(targetFolder);
     }
 
-    /*
+    /**
      * Copies native libraries to android project
+     *
+     * @throws IOException
      */
     private void copySubstrateLibraries() throws IOException {
         Path projectLibsLocation = getAndroidProjectMainPath().resolve("jniLibs").resolve("arm64-v8a");
@@ -358,11 +356,12 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         Files.copy(libsubstrate, projectLibsLocation.resolve("libsubstrate.so"), StandardCopyOption.REPLACE_EXISTING);
     }
 
-    /*
+    /**
      * Generates release signing configuration if
      * keystore is provided, else use debug configuration
      *
      * @return chosen configuration name
+     * @throws IOException
      */
     private String generateSigningConfiguration() throws IOException {
         Path settingsFile = getAndroidProjectPath().resolve("app").resolve("keystore.properties");
@@ -387,9 +386,11 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         return "Release";
     }
 
-    /*
+    /**
      * Copies the .cap files from the jar resource and store them in
      * a directory. Return that directory
+     *
+     * @throws IOException
      */
     private Path getCapCacheDir() throws IOException {
         Path capPath = paths.getGvmPath().resolve("capcache");
@@ -399,9 +400,12 @@ public class AndroidTargetConfiguration extends PosixTargetConfiguration {
         return capPath;
     }
 
-    /*
+    /**
      * Copies the Android project from the jar resource and stores it in
      * a directory. Return that directory
+     *
+     * @return Path of the Android project
+     * @throws IOException
      */
     private Path prepareAndroidProject() throws IOException {
         Path androidProject = getAndroidProjectPath();

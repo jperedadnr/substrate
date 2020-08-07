@@ -96,10 +96,10 @@ public class InternalProjectConfiguration {
     }
 
     public Path getGraalPath() {
-        return Objects.requireNonNull( this.publicConfig.getGraalPath(), "GraalVM Path is not defined");
+        return Objects.requireNonNull(this.publicConfig.getGraalPath(), "GraalVM Path is not defined");
     }
 
-    public Version getGraalVersion() throws IOException {
+    private Version getGraalVersion() throws IOException {
         String pattern = "GraalVM .*?(\\d\\d.\\d.\\d)";
         ProcessRunner graalJava;
         try {
@@ -410,6 +410,18 @@ public class InternalProjectConfiguration {
     }
 
     /**
+     * Check if the GraalVM provided by the configuration is supported
+     * @throws IOException if the GraalVM version is older than the minimum supported version
+     */
+    public void checkGraalVMVersion() throws IOException {
+        Version graalVersion = getGraalVersion();
+        if (graalVersion.compareTo(new Version(Constants.GRAALVM_MIN_VERSION)) < 0) {
+            throw new IOException("Current GraalVM version (" + graalVersion + ") not supported.\n" +
+                    "Please upgrade to " + Constants.GRAALVM_MIN_VERSION + " or higher");
+        }
+    }
+
+    /**
      * check if the GraalVM provided by the configuration is capable of running native-image
      * @throws NullPointerException when the configuration is null
      * @throws IllegalArgumentException when the configuration doesn't contain a property graalPath
@@ -477,7 +489,7 @@ public class InternalProjectConfiguration {
         if (publicConfig.getGraalPath() == null) {
             return;
         }
-        if (new Triplet(Constants.Profile.MACOS).equals(Triplet.fromCurrentOS())) {
+        if (Triplet.isMacOSHost()) {
             checkGraalVMPermissions(getGraalPath().toString());
         }
     }
