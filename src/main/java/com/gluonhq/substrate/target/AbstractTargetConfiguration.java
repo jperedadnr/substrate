@@ -305,6 +305,7 @@ public abstract class AbstractTargetConfiguration implements TargetConfiguration
 
         for (String fileName : getAdditionalSourceFiles()) {
             FileOps.copyResource(getAdditionalSourceFileLocation()  + fileName, workDir.resolve(fileName));
+            FileOps.replaceInFile(workDir.resolve(fileName), "MYAPP", appName);
             processRunner.addArg(fileName);
         }
         

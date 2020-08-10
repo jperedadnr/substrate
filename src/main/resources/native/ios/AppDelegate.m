@@ -143,6 +143,7 @@ int startGVM(const char* userHome, const char* userTimeZone) {
 
 
     const char* args[] = {"myapp",
+          "-Dproject.name=MYAPP",
           "-Dcom.sun.javafx.isEmbedded=true",
           "-Djavafx.platform=ios",
           userHome, userTimeZone};

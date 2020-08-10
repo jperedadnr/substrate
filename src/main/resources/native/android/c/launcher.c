@@ -54,6 +54,7 @@ extern int __svm_vm_is_static_binary __attribute__((weak)) = 1;
 
 const char *origargs[] = {
     "myapp",
+    "-Dproject.name=MYAPP",
     "-Djavafx.platform=android",
     "-Dmonocle.platform=Android", // used in com.sun.glass.ui.monocle.NativePlatformFactory
     "-Dembedded=monocle",

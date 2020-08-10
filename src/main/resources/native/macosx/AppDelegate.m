@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Gluon
+ * Copyright (c) 2019, 2020, Gluon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <pthread.h>
 
 extern void *run_main(int argc, const char* argv[]);
+const char *additionalArgs[] = { "-Dproject.name=MYAPP" };
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @end
@@ -43,15 +44,19 @@ extern void *run_main(int argc, const char* argv[]);
     pthread_t me = pthread_self();
     // fprintf(stderr, "Starting on thread: %p\n",me);
 
-    // generate char** CLI arguments from NSProcessInfo
+    // generate char** CLI arguments from NSProcessInfo and additionalArgs
     NSArray *nsargs = [[NSProcessInfo processInfo] arguments];
-    unsigned count = [nsargs count];
-    const char **args = (const char **)malloc((count + 1) * sizeof(char*));
-    for (unsigned int i = 0; i < count; ++i) {
+    unsigned nsargsSize = [nsargs count];
+    unsigned additionalArgsSize = sizeof(additionalArgs) / sizeof(char *);
+    const char **args = (const char **)malloc((nsargsSize + additionalArgsSize + 1) * sizeof(char*));
+    for (unsigned int i = 0; i < nsargsSize; i++) {
         args[i] = strdup([[nsargs objectAtIndex:i] UTF8String]);
     }
-    args[count] = NULL;
-    (*run_main)(count, args);
+    for (unsigned int i = 0; i < additionalArgsSize; i++) {
+        args[nsargsSize + i] = (char *)additionalArgs[i];
+    }
+    args[nsargsSize + additionalArgsSize] = NULL;
+    (*run_main)(nsargsSize + additionalArgsSize, args);
     NSLog(@"Started Gluon VM...");
     free(args);
 }

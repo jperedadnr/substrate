@@ -28,12 +28,23 @@
 #include <stdio.h>
 
 extern int *run_main(int argc, const char* argv[]);
+const char *additionalArgs[] = { "-Dproject.name=MYAPP" };
 
 int main(int argc, const char* argv[]) {
     #ifdef GVM_VERBOSE
       fprintf(stderr, "Main\n");
     #endif
-    (*run_main)(argc, argv);
+    unsigned additionalArgsSize = sizeof(additionalArgs) / sizeof(char *);
+    const char **args = (const char **)malloc((argc + additionalArgsSize + 1) * sizeof(char*));
+    for (unsigned int i = 0; i < argc; i++) {
+        args[i] = (char *)argv[i];
+    }
+    for (unsigned int i = 0; i < additionalArgsSize; i++) {
+        args[argc + i] = (char *)additionalArgs[i];
+    }
+    args[argc + additionalArgsSize] = NULL;
+    (*run_main)(argc + additionalArgsSize, args);
+    free(args);
 }
 
 // the following functions are used in Java 11 but not in 14
