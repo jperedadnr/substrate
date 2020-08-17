@@ -28,6 +28,7 @@
 package com.gluonhq.helloandroid;
 
 import android.graphics.Bitmap;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
