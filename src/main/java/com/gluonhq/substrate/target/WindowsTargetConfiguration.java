@@ -43,7 +43,7 @@ public class WindowsTargetConfiguration extends AbstractTargetConfiguration {
     private static final List<String> javaWindowsLibs = Arrays.asList(
             "advapi32", "iphlpapi", "secur32", "userenv", "version", "ws2_32", "winhttp");
     private static final List<String> staticJavaLibs = Arrays.asList(
-            "j2pkcs11", "java", "net", "nio", "prefs", "fdlibm", "sunec", "zip");
+            "j2pkcs11", "java", "net", "nio", "prefs", "fdlibm", "zip");
     private static final List<String> staticJvmLibs = Arrays.asList(
             "jvm", "libchelper");
 

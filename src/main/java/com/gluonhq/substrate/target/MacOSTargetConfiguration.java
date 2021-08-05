@@ -49,7 +49,7 @@ public class MacOSTargetConfiguration extends DarwinTargetConfiguration {
     );
 
     private static final List<String> staticJavaLibs = Arrays.asList(
-            "java", "nio", "zip", "net", "prefs", "j2pkcs11", "fdlibm", "sunec", "extnet"
+            "java", "nio", "zip", "net", "prefs", "j2pkcs11", "fdlibm", "extnet"
     );
     private static final List<String> staticJvmLibs = Arrays.asList(
             "jvm", "libchelper", "darwin"

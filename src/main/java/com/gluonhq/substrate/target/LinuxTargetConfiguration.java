@@ -59,7 +59,7 @@ public class LinuxTargetConfiguration extends PosixTargetConfiguration {
     private static final List<String> linuxLibs = Arrays.asList("z", "dl", "stdc++", "pthread");
 
     private static final List<String> staticJavaLibs = Arrays.asList(
-            "java", "nio", "zip", "net", "prefs", "j2pkcs11", "sunec", "extnet", "fdlibm",
+            "java", "nio", "zip", "net", "prefs", "j2pkcs11", "extnet", "fdlibm",
             "fontmanager", "javajpeg", "lcms", "awt_headless", "awt"
     );
 
