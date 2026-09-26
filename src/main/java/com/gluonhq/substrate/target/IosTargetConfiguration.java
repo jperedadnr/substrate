@@ -76,7 +76,6 @@ public class IosTargetConfiguration extends DarwinTargetConfiguration {
             "JNIHeaderDirectives.cap", "LibFFIHeaderDirectives.cap",
             "LLVMDirectives.cap", "PosixDirectives.cap"};
     private static final String capLocation= "/native/ios/cap/";
-    private static final String iosCheck = "ios/check";
 
     private Frameworks frameworks;
 
@@ -293,7 +292,7 @@ public class IosTargetConfiguration extends DarwinTargetConfiguration {
 
         Path app = getAndValidateAppPath();
 
-        Deploy deploy = new Deploy(paths.getTmpPath().resolve(iosCheck));
+        Deploy deploy = new Deploy();
         deploy.addDebugSymbolInfo(paths.getAppPath(), projectConfiguration.getAppName());
         if (isSimulator()) {
             Simulator simulator = new Simulator(paths, projectConfiguration);
@@ -318,7 +317,7 @@ public class IosTargetConfiguration extends DarwinTargetConfiguration {
 
         Path app = getAndValidateAppPath();
 
-        Deploy deploy = new Deploy(paths.getTmpPath().resolve(iosCheck));
+        Deploy deploy = new Deploy();
         if (isSimulator()) {
             Simulator simulator = new Simulator(paths, projectConfiguration);
             simulator.launchSimulator();
